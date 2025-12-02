@@ -37,6 +37,7 @@ model Trip {
   destination String
   destLat     Decimal? @db.Decimal(10, 8)
   destLng     Decimal? @db.Decimal(10, 8)
+  capacity    Int
 
   captain   Captain?   @relation(fields: [captainId], references: [id])
   captainId String?
@@ -44,6 +45,7 @@ model Trip {
   userId    String
   pricing   Decimal    @db.Decimal(10, 2)
   status    TripStatus @default(REQUESTED)
+  otp       String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
