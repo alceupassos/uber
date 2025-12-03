@@ -6,7 +6,7 @@ import { Decimal } from "decimal.js";
 import jwtLib from "jsonwebtoken";
 
 const jwtPlugin = jwt({
-  secret: "uber",
+  secret: process.env.JWT_SECRET || "uber",
   exp: "7d",
   schema: t.Object({
     user: t.String(),
@@ -31,7 +31,10 @@ app.ws("/realtime", {
       return;
     }
     try {
-      const payload = jwtLib.verify(token, "uber") as any;
+      const payload = jwtLib.verify(
+        token,
+        process.env.JWT_SECRET || "uber",
+      ) as any;
       (ws as any).info = payload;
       if (payload.role === "user") {
         userMap.set(payload.user, ws);
@@ -479,10 +482,8 @@ app.group("/trip", (app) =>
 );
 export default app;
 
-if (import.meta.main) {
-  app.listen(3000);
+app.listen(process.env.PORT || 3001);
 
-  console.log(
-    `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-  );
-}
+console.log(
+  `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+);

@@ -4,8 +4,7 @@
   "scripts": {
     "test": "vitest",
     "dev": "bun run --watch src/index.ts",
-    "lint": "eslint src/**/*.ts tests/**/*.ts",
-    "build": "bun build --target node src/index.ts"
+    "lint": "eslint src/**/*.ts test/**/*.ts"
   },
   "dependencies": {
     "@elysiajs/jwt": "^1.4.0",
