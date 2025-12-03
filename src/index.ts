@@ -8,6 +8,10 @@ import jwtLib from "jsonwebtoken";
 const jwtPlugin = jwt({
   secret: "uber",
   exp: "7d",
+  schema: t.Object({
+    user: t.String(),
+    role: t.Union([t.Literal("user"), t.Literal("captain")]),
+  }),
 });
 
 const app = new Elysia().use(jwtPlugin);
@@ -35,7 +39,7 @@ app.ws("/realtime", {
         captainMap.set(payload.user, ws);
       }
       console.log("🔗 WS opened for", payload.role, payload.user);
-    } catch (error) {
+    } catch {
       ws.close(4002, "Invalid token");
     }
   },
@@ -60,7 +64,7 @@ app.ws("/realtime", {
           );
           return;
         }
-        userMap.set(payload.userId, ws);
+        userMap.set(payload.user, ws);
         break;
       case "send:captain":
         // payload { lat, long, tripId }
@@ -242,9 +246,13 @@ app.group("/trip", (app) =>
       "/user/request",
       async ({ jwt, body, headers: { authorization } }) => {
         const { origin, destination, capacity } = body;
-        const payload = await jwt.verify(authorization);
-
-        if (!payload) return status(401, "Unauthorized");
+        if (!authorization) return status(401, "Unauthorized");
+        let payload: any;
+        try {
+          payload = await jwt.verify(authorization);
+        } catch {
+          return status(401, "Unauthorized");
+        }
 
         const user = await prisma.user.findUnique({
           where: { id: payload.user as string },
@@ -288,9 +296,13 @@ app.group("/trip", (app) =>
       "/master/cancel",
       async ({ jwt, body, headers: { authorization } }) => {
         const { id } = body;
-        const payload = await jwt.verify(authorization);
-
-        if (!payload) return status(401, "Unauthorized");
+        if (!authorization) return status(401, "Unauthorized");
+        let payload: any;
+        try {
+          payload = await jwt.verify(authorization);
+        } catch {
+          return status(401, "Unauthorized");
+        }
 
         const trip = await prisma.trip.findUnique({
           where: { id },
@@ -321,8 +333,8 @@ app.group("/trip", (app) =>
         }
 
         const userId = tripUserMap.get(trip.id);
-        const wss = userMap.get(userId!);
-        wss.send(JSON.stringify({ type: "CANCELLED" }));
+        const wss = userId ? userMap.get(userId) : undefined;
+        if (wss) wss.send(JSON.stringify({ type: "CANCELLED" }));
         return { message: "Trip cancelled successfully!" };
       },
       {
@@ -336,9 +348,13 @@ app.group("/trip", (app) =>
       async ({ jwt, body, headers: { authorization } }) => {
         // check the trip id and otp of the trip and also the trip has not started also the trip captain is the
         const { id, otp } = body;
-        const payload = await jwt.verify(authorization);
-
-        if (!payload) return status(401, "Unauthorized");
+        if (!authorization) return status(401, "Unauthorized");
+        let payload: any;
+        try {
+          payload = await jwt.verify(authorization);
+        } catch {
+          return status(401, "Unauthorized");
+        }
 
         const captain = await prisma.captain.findUnique({
           where: { id: payload.user as string },
@@ -363,8 +379,8 @@ app.group("/trip", (app) =>
         });
 
         const userId = tripUserMap.get(trip.id);
-        const wss = userMap.get(userId!);
-        wss.send(JSON.stringify({ type: "ON_TRIP" }));
+        const wss = userId ? userMap.get(userId) : undefined;
+        if (wss) wss.send(JSON.stringify({ type: "ON_TRIP" }));
         return { message: "Trip picked up successfully!" };
       },
       {
@@ -378,9 +394,13 @@ app.group("/trip", (app) =>
       "/captain/complete",
       async ({ jwt, body, headers: { authorization } }) => {
         const { id } = body;
-        const payload = await jwt.verify(authorization);
-
-        if (!payload) return status(401, "Unauthorized");
+        if (!authorization) return status(401, "Unauthorized");
+        let payload: any;
+        try {
+          payload = await jwt.verify(authorization);
+        } catch {
+          return status(401, "Unauthorized");
+        }
 
         const captain = await prisma.captain.findUnique({
           where: { id: payload.user as string },
@@ -404,8 +424,8 @@ app.group("/trip", (app) =>
         });
 
         const userId = tripUserMap.get(trip.id);
-        const wss = userMap.get(userId!);
-        wss.send(JSON.stringify({ type: "COMPLETED" }));
+        const wss = userId ? userMap.get(userId) : undefined;
+        if (wss) wss.send(JSON.stringify({ type: "COMPLETED" }));
         return { message: "Trip completed successfully!" };
       },
       {
@@ -418,9 +438,13 @@ app.group("/trip", (app) =>
       "/match",
       async ({ jwt, body, headers: { authorization } }) => {
         const { id } = body;
-        const payload = await jwt.verify(authorization);
-
-        if (!payload) return status(401, "Unauthorized");
+        if (!authorization) return status(401, "Unauthorized");
+        let payload: any;
+        try {
+          payload = await jwt.verify(authorization);
+        } catch {
+          return status(401, "Unauthorized");
+        }
 
         const captain = await prisma.captain.findUnique({
           where: { id: payload.user as string },

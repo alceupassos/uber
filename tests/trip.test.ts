@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import app from "../src/index";
 import jwt from "jsonwebtoken";
-import bcrypt from "bcrypt";
 
 const JWT_SECRET = "uber";
 
@@ -48,7 +47,7 @@ describe("Trip", () => {
       prisma.trip.create.mockResolvedValue({ id: "trip-id" });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/request", {
+        new Request("http://localhost/trip/user/request", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -72,7 +71,7 @@ describe("Trip", () => {
 
     it("should fail if unauthorized", async () => {
       const response = await app.handle(
-        new Request("http://localhost/trip/request", {
+        new Request("http://localhost/trip/user/request", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -91,7 +90,7 @@ describe("Trip", () => {
       const token = generateToken(userPayload);
 
       const response = await app.handle(
-        new Request("http://localhost/trip/request", {
+        new Request("http://localhost/trip/user/request", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -120,7 +119,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/cancel", {
+        new Request("http://localhost/trip/master/cancel", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -149,7 +148,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/cancel", {
+        new Request("http://localhost/trip/master/cancel", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -174,7 +173,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/cancel", {
+        new Request("http://localhost/trip/master/cancel", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -191,7 +190,7 @@ describe("Trip", () => {
 
     it("should fail if unauthorized", async () => {
       const response = await app.handle(
-        new Request("http://localhost/trip/cancel", {
+        new Request("http://localhost/trip/master/cancel", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ id: "trip-id" }),
@@ -207,7 +206,7 @@ describe("Trip", () => {
       prisma.trip.findUnique.mockResolvedValue(null);
 
       const response = await app.handle(
-        new Request("http://localhost/trip/cancel", {
+        new Request("http://localhost/trip/master/cancel", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -236,7 +235,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/pickup", {
+        new Request("http://localhost/trip/captain/pickup", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -267,7 +266,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/pickup", {
+        new Request("http://localhost/trip/captain/pickup", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -288,7 +287,7 @@ describe("Trip", () => {
       prisma.captain.findUnique.mockResolvedValue(null);
 
       const response = await app.handle(
-        new Request("http://localhost/trip/pickup", {
+        new Request("http://localhost/trip/captain/pickup", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -313,7 +312,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/pickup", {
+        new Request("http://localhost/trip/captain/pickup", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -341,7 +340,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/complete", {
+        new Request("http://localhost/trip/captain/complete", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -371,7 +370,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/complete", {
+        new Request("http://localhost/trip/captain/complete", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -392,7 +391,7 @@ describe("Trip", () => {
       prisma.captain.findUnique.mockResolvedValue(null);
 
       const response = await app.handle(
-        new Request("http://localhost/trip/complete", {
+        new Request("http://localhost/trip/captain/complete", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -416,7 +415,7 @@ describe("Trip", () => {
       });
 
       const response = await app.handle(
-        new Request("http://localhost/trip/complete", {
+        new Request("http://localhost/trip/captain/complete", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
