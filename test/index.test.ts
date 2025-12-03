@@ -1,4 +1,12 @@
-import { describe, expect, it, vi, beforeEach, beforeAll, MockedFunction } from "vitest";
+import {
+  describe,
+  expect,
+  it,
+  vi,
+  beforeEach,
+  beforeAll,
+  MockedFunction,
+} from "vitest";
 
 // Mock bcrypt
 vi.mock("bcrypt", () => ({
@@ -70,7 +78,7 @@ describe("Uber Backend Tests", () => {
               password: "password123",
               confirmPassword: "password123",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -95,7 +103,7 @@ describe("Uber Backend Tests", () => {
               password: "password123",
               confirmPassword: "password123",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(500); // Elysia throws error
@@ -112,7 +120,7 @@ describe("Uber Backend Tests", () => {
               password: "password123",
               confirmPassword: "password456",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(500);
@@ -141,7 +149,7 @@ describe("Uber Backend Tests", () => {
               password: "password123",
               confirmPassword: "password123",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -166,7 +174,7 @@ describe("Uber Backend Tests", () => {
               email: "testuser@example.com",
               password: "password123",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -189,7 +197,7 @@ describe("Uber Backend Tests", () => {
               email: "testuser@example.com",
               password: "wrongpassword",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -214,7 +222,7 @@ describe("Uber Backend Tests", () => {
               email: "testcaptain@example.com",
               password: "password123",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -250,7 +258,7 @@ describe("Uber Backend Tests", () => {
             email: "testuser@example.com",
             password: "password123",
           }),
-        })
+        }),
       );
       userToken = await userLogin.text();
 
@@ -262,7 +270,7 @@ describe("Uber Backend Tests", () => {
             email: "testcaptain@example.com",
             password: "password123",
           }),
-        })
+        }),
       );
       captainToken = await captainLogin.text();
 
@@ -310,7 +318,7 @@ describe("Uber Backend Tests", () => {
               },
               capacity: 2,
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -339,7 +347,7 @@ describe("Uber Backend Tests", () => {
               },
               capacity: 2,
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(401);
@@ -370,7 +378,7 @@ describe("Uber Backend Tests", () => {
             body: JSON.stringify({
               id: tripId,
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -406,7 +414,7 @@ describe("Uber Backend Tests", () => {
               id: tripId,
               otp: "1234",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -440,7 +448,7 @@ describe("Uber Backend Tests", () => {
             body: JSON.stringify({
               id: tripId,
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);
@@ -475,7 +483,7 @@ describe("Uber Backend Tests", () => {
             body: JSON.stringify({
               id: "new-trip-id",
             }),
-          })
+          }),
         );
 
         expect(response.status).toBe(200);

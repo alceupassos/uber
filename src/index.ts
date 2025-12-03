@@ -480,13 +480,12 @@ app.group("/trip", (app) =>
       },
     ),
 );
+
+app.listen(process.env.PORT || 3000);
+
+console.log(
+  `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
+);
+
 export type App = typeof app;
 export default app;
-
-if (import.meta.main) {
-  app.listen(process.env.PORT || 3001);
-
-  console.log(
-    `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
-  );
-}
