@@ -89,11 +89,8 @@ export const userMap = new Map<string, any>();
 export const captainMap = new Map<string, any>();
 
 export type App = typeof app;
-export default app;
 
-// Start server if run directly
-
-app.listen(3002, () => {
+app.listen(8080, () => {
   console.log(
     `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`
   );

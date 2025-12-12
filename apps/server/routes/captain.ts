@@ -42,7 +42,7 @@ export const captain = new Elysia({ prefix: "/captain" })
       body: t.Object({
         id: t.String(),
       }),
-    },
+    }
   )
   .post(
     "/pickup",
@@ -88,7 +88,7 @@ export const captain = new Elysia({ prefix: "/captain" })
         id: t.String(),
         otp: t.String(),
       }),
-    },
+    }
   )
   .post(
     "/complete",
@@ -127,7 +127,7 @@ export const captain = new Elysia({ prefix: "/captain" })
       body: t.Object({
         id: t.String(),
       }),
-    },
+    }
   )
   .get("/history", async ({ jwt, headers: { authorization } }) => {
     if (!authorization) return status(401, "Unauthorized");

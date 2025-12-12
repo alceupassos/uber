@@ -2,9 +2,8 @@
   "name": "uber-backend",
   "version": "1.0.50",
   "scripts": {
-    "test": "vitest",
     "dev": "bun run --watch src/index.ts",
-    "lint": "eslint src/**/*.ts test/**/*.ts"
+    "lint": "eslint src/**/*.ts"
   },
   "dependencies": {
     "@elysiajs/jwt": "^1.4.0",

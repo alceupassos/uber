@@ -6,7 +6,7 @@ import { jwtPlugin } from "../lib/jwt";
 export const auth = new Elysia({ prefix: "/auth" })
   .use(jwtPlugin)
   .post(
-    "/captain-signup",
+    "/captain/signup",
     async (ctx) => {
       const { body } = ctx;
       const { name, vehicle, capacity, email, password, confirmPassword } =
@@ -45,10 +45,10 @@ export const auth = new Elysia({ prefix: "/auth" })
         password: t.String(),
         confirmPassword: t.String(),
       }),
-    },
+    }
   )
   .post(
-    "/user-signup",
+    "/user/signup",
     async (ctx) => {
       const { body } = ctx;
       const { name, email, password, confirmPassword } = body;
@@ -82,10 +82,10 @@ export const auth = new Elysia({ prefix: "/auth" })
         password: t.String(),
         confirmPassword: t.String(),
       }),
-    },
+    }
   )
   .post(
-    "/login-user",
+    "/uesr/login",
     async ({ jwt, body }) => {
       const { email, password } = body;
       const user = await prisma.user.findUnique({
@@ -100,10 +100,10 @@ export const auth = new Elysia({ prefix: "/auth" })
         email: t.String({ format: "email" }),
         password: t.String(),
       }),
-    },
+    }
   )
   .post(
-    "/login-captain",
+    "/captain/login",
     async ({ jwt, body }) => {
       const { email, password } = body;
       const captain = await prisma.captain.findUnique({
@@ -118,5 +118,5 @@ export const auth = new Elysia({ prefix: "/auth" })
         email: t.String({ format: "email" }),
         password: t.String(),
       }),
-    },
+    }
   );
