@@ -21,9 +21,9 @@ export default function UserInfo() {
   const { data } = useUser();
 
   return (
-    <div>
-      {data?.name && <div>{data.name}</div>}
+    <span className="inline-flex gap-2 mb-2">
+      You are {data?.name && <div>{data.name}</div>} and email
       {data?.email && <div>{data.email}</div>}
-    </div>
+    </span>
   );
 }

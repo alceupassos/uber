@@ -1,5 +1,6 @@
 "use client";
 
+import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -10,29 +11,56 @@ import {
 import { Input } from "@/components/ui/input";
 import api from "@repo/eden";
 import { useMutation } from "@tanstack/react-query";
-import { LocationEdit } from "lucide-react";
-import { useState } from "react";
+import { LocationEdit, MapPin, Navigation } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import UserInfo from "@/components/user";
+import { LocationDialog } from "@/components/location-picker";
 
-const Map = dynamic(() => import("@/components/map"), { ssr: false });
+const Map = dynamic(() => import("@/components/map"), { ssr: true });
 
 export default function Book() {
   const [select, setSelect] = useState("Bike");
+  const [open, setOpen] = useState(false);
+  const [choose, setChoose] = useState(true); // set origin
+  const [origin, setOrigin] = useState<any | null>(null);
+  const [destination, setDestination] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    window.navigator.geolocation.getCurrentPosition(
+      (position) => {
+        const location = {
+          name: "Your Location",
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        };
+        setOrigin(location);
+        console.log("User location set:", location);
+      },
+      (err) => {
+        console.error("Geolocation error:", err.message);
+        toast.error(
+          "Unable to get your location. Please enable location permissions."
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 0,
+      }
+    );
+  }, []);
+
   const { mutate: requestTrip } = useMutation({
     mutationFn: async () => {
       const res = await api.user.request.post({
-        origin: {
-          name: "San Francisco",
-          latitude: 37.7749295,
-          longitude: -122.4194155,
-        },
-        destination: {
-          name: "San Francisco",
-          latitude: 37.7749295,
-          longitude: -122.4194155,
-        },
+        origin,
+        destination,
         capacity: 2,
       });
       if (res.status === 200) {
@@ -48,24 +76,65 @@ export default function Book() {
       <CardContent>
         <div>
           <UserInfo />
+          {origin && origin?.longitude}
         </div>
-        <div className="space-y-1">
-          <div className="flex gap-2">
-            <Input type="text" placeholder="Enter pickup location" />
-            <Button>
-              <LocationEdit />
-            </Button>
+
+        {origin ? (
+          <div className="divide-y-2 border-2  rounded-lg shadow">
+            <div className="flex gap-2 items-center justify-center px-2">
+              <MapPin />
+              <input
+                type="text"
+                placeholder="Your Location"
+                value={origin?.name}
+                className="outline-none px-2 py-1 w-full text-ellipsis"
+              />
+              <Button
+                variant={"ghost"}
+                onClick={() => {
+                  setOpen(true);
+                  setChoose(true);
+                }}>
+                <LocationEdit />
+              </Button>
+            </div>
+            <div className="flex gap-2 items-center justify-center px-2">
+              <Navigation />
+              <input
+                type="text"
+                placeholder="Where to?"
+                value={destination?.name}
+                className="outline-none px-2 py-1 w-full text-ellipsis"
+              />
+              <Button
+                variant={"ghost"}
+                onClick={() => {
+                  setOpen(true);
+                  setChoose(false);
+                }}>
+                <LocationEdit />
+              </Button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <Input type="text" placeholder="Where to?" />
-            <Button>
-              <LocationEdit />
-            </Button>
+        ) : (
+          <div className="border w-full h-24 rounded-lg bg-accent animate-pulse" />
+        )}
+        <LocationDialog
+          origin={origin}
+          open={open}
+          onClose={() => setOpen(false)}
+          setOrigin={setOrigin}
+          setDestination={setDestination}
+          choose={choose}
+        />
+        {origin && destination && (
+          <div className="mt-8 border rounded-lg overflow-hidden">
+            <Map
+              from={[origin.latitude, origin.longitude]}
+              to={[destination.latitude, destination.longitude]}
+            />
           </div>
-        </div>
-        <div className="mt-8 border rounded-lg overflow-hidden">
-          <Map from={[12.9716, 77.5946]} to={[12.935, 77.62]} />
-        </div>
+        )}
         <div className="mt-8">
           <h3 className="text-xl font-bold mb-3">Choose a Ride</h3>
           <div className="space-y-2">
@@ -102,7 +171,7 @@ export default function Book() {
         </div>
       </CardContent>
       <CardFooter>
-        <Button>Confirm</Button>
+        <Button>Find Drivers</Button>
       </CardFooter>
     </Card>
   );
@@ -111,7 +180,7 @@ export default function Book() {
 const VehicleSelect = ({ src, name, price, select, setSelect }: any) => {
   return (
     <div
-      className={`border p-3 rounded-md shadow flex transition cursor-pointer gap-3 ${select == name && "ring-3 ring-primary bg-accent"}`}
+      className={`border p-3 rounded-md shadow flex transition cursor-pointer gap-3 ${select == name && "ring-3 ring-primary/50 bg-accent"}`}
       onClick={() => setSelect(name)}>
       <img
         src={src}
