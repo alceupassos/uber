@@ -59,8 +59,10 @@ export const user = new Elysia({ prefix: "/user" })
           otp,
         },
       });
-      await poolForCaptains(trip.id, origin.latitude, origin.longitude);
-      return { message: "Trip created successfully!", id: trip.id, otp };
+
+      return status(200, {
+        id: trip.id,
+      });
     },
     {
       body: t.Object({
@@ -112,6 +114,22 @@ export const user = new Elysia({ prefix: "/user" })
       }),
     }
   )
+  .get("/trip/:id", async ({ params, payload }) => {
+    if (payload.role !== "user") return status(401, "Unauthorized");
+
+    const trip = await prisma.trip.findUnique({
+      where: { id: params.id },
+      include: { captain: true },
+    });
+
+    if (!trip) return status(404, { message: "Trip not found" });
+
+    if (trip.userId !== payload.user) {
+      return status(403, { message: "Unauthorized to view this trip" });
+    }
+
+    return trip;
+  })
   .get("/history", async ({ payload }) => {
     if (payload.role !== "user") return status(401, "Unauthorized");
 

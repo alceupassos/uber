@@ -144,42 +144,4 @@ export const captain = new Elysia({ prefix: "/captain" })
     });
 
     return { trips };
-  })
-  .post(
-    "/match",
-    async ({ body, payload }) => {
-      const { id } = body;
-
-      const captain = await prisma.captain.findUnique({
-        where: { id: payload.user },
-      });
-      if (!captain) return status(401, "Unauthorized");
-
-      const trip = await prisma.trip.findUnique({
-        where: { id },
-      });
-      if (!trip) return { message: "Trip not found!" };
-
-      if (payload.role === "captain" && trip.status === "REQUESTED") {
-        await prisma.trip.update({
-          where: { id },
-          data: {
-            status: "ACCEPTED",
-            captain: { connect: { id: captain.id } },
-          },
-        });
-        // Notify user and captain
-        notifyUserTripStatus(trip.userId, trip.id, "ACCEPTED");
-        notifyCaptainTripStatus(captain.id, trip.id, "ACCEPTED");
-      } else {
-        return status(401, "Unauthorized");
-      }
-
-      return { message: "Trip matched successfully!", tripid: trip.id };
-    },
-    {
-      body: t.Object({
-        id: t.String(),
-      }),
-    }
-  );
+  });

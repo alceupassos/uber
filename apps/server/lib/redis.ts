@@ -8,9 +8,14 @@ export const redis = new Redis({
 export async function saveCaptainLocation(
   id: string,
   lat: number,
-  long: number,
+  long: number
 ) {
   await redis.geoadd("captain:locations", long, lat, id);
+}
+
+export async function findNearestCaptains() {
+  // TODO: this function will search for nearest drivers and then check wheather they are available for ride
+  await redis.geosearch();
 }
 
 export async function getCaptainLocation(id: string) {
@@ -24,7 +29,7 @@ export async function setTripForUser(userId: string, tripId: string) {
   await redis.set(`trip:user:${tripId}`, userId);
 }
 
-export async function getTripForUser(tripId: string) {
+export async function getUserForTrip(tripId: string) {
   const userId = await redis.get(`trip:user:${tripId}`);
   if (!userId) return null;
   return userId;
