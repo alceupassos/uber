@@ -1,4 +1,4 @@
-import { Elysia } from "elysia";
+import { Elysia, status } from "elysia";
 import { prisma } from "../lib/prisma";
 import { userMap, captainMap } from "../src";
 import {
@@ -40,30 +40,46 @@ export const ws = new Elysia()
   .use(jwtPlugin)
   .use(cookie())
   .guard({
-    // runs before each handler (including WS upgrades)
-    async beforeHandle({ request, jwt, cookie, status }) {
-      const token = cookie.auth?.value;
-      console.log("guard: beforeHandle", token);
+    async beforeHandle({ request, jwt, cookie }) {
+      const token = cookie?.auth?.value;
+      console.log("guard: beforeHandle token:", !!token);
 
       if (!token) return status(401, "Missing token");
 
-      // ---------------------------------------------------------
       // Verify the token – `jwt.verify` returns the payload or `null`
       const payload = await jwt.verify(token as string);
-
       if (!payload) return status(401, "Invalid token");
 
-      console.log("JWT verified for:", payload.user, payload.role, payload);
-
-      // ---------------------------------------------------------
+      console.log(
+        "JWT verified for:",
+        (payload as any).user,
+        (payload as any).role
+      );
+      // ws.data.info = payload;
       // Return extra data – Elysia merges it into the WS context
       // `info` will be available as `ws.data.info` later
-      return { info: payload };
     },
   })
   .ws("/realtime", {
     async open(ws) {
-      const info = ws.data.info;
+      console.log("🔔 New WS connection established");
+      console.log("ws.data:", ws.data);
+      const info = (ws.data as any)?.info;
+      if (!info) {
+        console.log("open: missing auth info, closing socket");
+        try {
+          // politely inform the client
+          ws.send(JSON.stringify({ type: "error", payload: "Unauthorized" }));
+        } catch (err) {
+          console.log(err);
+        }
+        try {
+          ws.close?.();
+        } catch (err) {
+          console.log(err);
+        }
+        return;
+      }
       console.log("open", info);
       if (info.role === "user") {
         userMap.set(info.user, ws);
@@ -79,7 +95,7 @@ export const ws = new Elysia()
         case "subscribe:trip":
           // payload { tripId }
           // user subscribes to trip updates (location and status) after requesting
-          if (ws.data.info.role == "user") return;
+          if ((ws.data as any).info.role == "user") return;
 
           const trip = await prisma.trip.findUnique({
             where: { id: payload.tripId },
@@ -96,7 +112,7 @@ export const ws = new Elysia()
             return;
           }
 
-          userMap.set(ws.data.info.user, ws);
+          userMap.set((ws.data as any).info.user, ws);
 
           // Send initial captain location if available
           if (trip.captainId && trip.status === "ACCEPTED") {
@@ -125,7 +141,7 @@ export const ws = new Elysia()
         case "send:location":
           // payload { lat, long, tripId? }
           // captain sends location for pooling or in drive
-          if (ws.data.info.role == "user") return;
+          if ((ws.data as any).info.role == "user") return;
           if (!payload.lat || !payload.long) {
             ws.send(
               JSON.stringify({ type: "error", payload: "Invalid payload" })
@@ -141,7 +157,7 @@ export const ws = new Elysia()
                 isPooling: false,
               },
               where: {
-                id: ws.data.info.user,
+                id: (ws.data as any).info.user,
               },
             });
 
@@ -174,11 +190,11 @@ export const ws = new Elysia()
                 isPooling: true,
               },
               where: {
-                id: ws.data.info.user,
+                id: (ws.data as any).info.user,
               },
             });
             await saveCaptainLocation(
-              (ws.data as any).user,
+              (ws.data as any).info.user,
               payload.lat,
               payload.long
             );
@@ -198,7 +214,7 @@ export const ws = new Elysia()
     async close(ws) {
       console.log("❌ client left");
       if (ws.data) {
-        const { user, role } = ws.data.info as any;
+        const { user, role } = (ws.data as any).info as any;
         if (role === "user") {
           userMap.delete(user);
         } else if (role === "captain") {
