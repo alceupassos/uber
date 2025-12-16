@@ -21,7 +21,7 @@ export default function Login() {
       });
       if (res.status === 200) {
         toast.success("Login Successful");
-        localStorage.setItem("token", res.data as string);
+        localStorage.setItem("token", res.data?.token!);
       } else {
         toast.error("Invalid credentials");
       }

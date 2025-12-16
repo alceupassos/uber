@@ -36,201 +36,174 @@ export const notifyCaptainTripStatus = (
   }
 };
 
-export const ws = new Elysia()
-  .use(jwtPlugin)
-  .use(cookie())
-  .guard({
-    async beforeHandle({ request, jwt, cookie }) {
-      const token = cookie?.auth?.value;
-      console.log("guard: beforeHandle token:", !!token);
+export const ws = new Elysia().use(jwtPlugin).ws("/realtime", {
+  async open(ws) {
+    const token = ws.data.query?.token;
 
-      if (!token) return status(401, "Missing token");
+    if (!token) return status(401, "Missing token");
 
-      // Verify the token – `jwt.verify` returns the payload or `null`
-      const payload = await jwt.verify(token as string);
+    try {
+      const payload = await ws.data.jwt.verify(token as string);
       if (!payload) return status(401, "Invalid token");
+      (ws.data as any).info = payload;
 
-      console.log(
-        "JWT verified for:",
-        (payload as any).user,
-        (payload as any).role
+      ws.send(
+        JSON.stringify({
+          type: "auth",
+          status: "ok",
+          userId: payload.user,
+        })
       );
-      // ws.data.info = payload;
-      // Return extra data – Elysia merges it into the WS context
-      // `info` will be available as `ws.data.info` later
-    },
-  })
-  .ws("/realtime", {
-    async open(ws) {
-      console.log("🔔 New WS connection established");
-      console.log("ws.data:", ws.data);
-      const info = (ws.data as any)?.info;
-      if (!info) {
-        console.log("open: missing auth info, closing socket");
-        try {
-          // politely inform the client
-          ws.send(JSON.stringify({ type: "error", payload: "Unauthorized" }));
-        } catch (err) {
-          console.log(err);
+    } catch (err) {
+      ws.send(JSON.stringify({ type: "error", payload: "Unauthorized" }));
+      ws.close?.();
+    }
+
+    if ((ws.data as any).info?.role === "user") {
+      userMap.set((ws.data as any).info.user, ws);
+    } else if ((ws.data as any).info.role === "captain") {
+      captainMap.set((ws.data as any).info.user, ws);
+    }
+  },
+  async message(ws, msg: { type: string; payload: any }) {
+    const { type, payload } = msg;
+    const info = (ws.data as any).info;
+    if (!info) return;
+    switch (type) {
+      case "subscribe:trip":
+        // payload { tripId }
+        // user subscribes to trip updates (location and status) after requesting
+        if (info.role == "user") return;
+
+        const trip = await prisma.trip.findUnique({
+          where: { id: payload.tripId },
+          include: { captain: true },
+        });
+
+        if (!trip || trip.userId !== info.user) {
+          ws.send(
+            JSON.stringify({
+              type: "error",
+              payload: "Trip not found or unauthorized",
+            })
+          );
+          return;
         }
-        try {
-          ws.close?.();
-        } catch (err) {
-          console.log(err);
-        }
-        return;
-      }
-      console.log("open", info);
-      if (info.role === "user") {
+
         userMap.set(info.user, ws);
-      } else if (info.role === "captain") {
-        captainMap.set(info.user, ws);
-      }
 
-      console.log("🔗 WS opened for", info.role, info.user);
-    },
-    async message(ws, msg: { type: string; payload: any }) {
-      const { type, payload } = msg;
-      switch (type) {
-        case "subscribe:trip":
-          // payload { tripId }
-          // user subscribes to trip updates (location and status) after requesting
-          if ((ws.data as any).info.role == "user") return;
-
-          const trip = await prisma.trip.findUnique({
-            where: { id: payload.tripId },
-            include: { captain: true },
-          });
-
-          if (!trip || trip.userId !== (ws.data as any).user) {
+        // Send initial captain location if available
+        if (trip.captainId && trip.status === "ACCEPTED") {
+          const captainLocation = await getCaptainLocation(trip.captainId);
+          if (captainLocation) {
             ws.send(
               JSON.stringify({
-                type: "error",
-                payload: "Trip not found or unauthorized",
+                type: "location:update",
+                payload: {
+                  tripId: trip.id,
+                  lat: captainLocation.lat,
+                  long: captainLocation.long,
+                },
               })
             );
-            return;
           }
+        }
 
-          userMap.set((ws.data as any).info.user, ws);
-
-          // Send initial captain location if available
-          if (trip.captainId && trip.status === "ACCEPTED") {
-            const captainLocation = await getCaptainLocation(trip.captainId);
-            if (captainLocation) {
-              ws.send(
-                JSON.stringify({
-                  type: "location:update",
-                  payload: {
-                    tripId: trip.id,
-                    lat: captainLocation.lat,
-                    long: captainLocation.long,
-                  },
-                })
-              );
-            }
-          }
-
+        ws.send(
+          JSON.stringify({
+            type: "subscribed",
+            payload: { tripId: trip.id, status: trip.status },
+          })
+        );
+        break;
+      case "send:location":
+        // payload { lat, long, tripId? }
+        // captain sends location for pooling or in drive
+        if (info.role == "user") return;
+        if (!payload.lat || !payload.long) {
           ws.send(
-            JSON.stringify({
-              type: "subscribed",
-              payload: { tripId: trip.id, status: trip.status },
-            })
+            JSON.stringify({ type: "error", payload: "Invalid payload" })
           );
-          break;
-        case "send:location":
-          // payload { lat, long, tripId? }
-          // captain sends location for pooling or in drive
-          if ((ws.data as any).info.role == "user") return;
-          if (!payload.lat || !payload.long) {
-            ws.send(
-              JSON.stringify({ type: "error", payload: "Invalid payload" })
-            );
-            return;
-          }
+          return;
+        }
 
-          if (payload.tripId) {
-            await prisma.captain.update({
-              data: {
-                isOnline: true,
-                inDrive: true,
-                isPooling: false,
-              },
-              where: {
-                id: (ws.data as any).info.user,
-              },
-            });
-
-            try {
-              const userId = await getUserFromTrip(payload.tripId);
-
-              if (userId) {
-                const userWs = userMap.get(userId);
-                if (userWs) {
-                  userWs.send(
-                    JSON.stringify({
-                      type: "location:update",
-                      payload: {
-                        tripId: payload.tripId,
-                        lat: payload.lat,
-                        long: payload.long,
-                      },
-                    })
-                  );
-                }
-              }
-            } catch {
-              new Error("User not connected");
-            }
-          } else {
-            await prisma.captain.update({
-              data: {
-                isOnline: true,
-                inDrive: false,
-                isPooling: true,
-              },
-              where: {
-                id: (ws.data as any).info.user,
-              },
-            });
-            await saveCaptainLocation(
-              (ws.data as any).info.user,
-              payload.lat,
-              payload.long
-            );
-          }
-          ws.send(
-            JSON.stringify({
-              type: "location:updated",
-              payload: "Location sent",
-            })
-          );
-          break;
-        default:
-          break;
-      }
-    },
-    // clean up when client disconnects
-    async close(ws) {
-      console.log("❌ client left");
-      if (ws.data) {
-        const { user, role } = (ws.data as any).info as any;
-        if (role === "user") {
-          userMap.delete(user);
-        } else if (role === "captain") {
-          captainMap.delete(user);
-          // make captain offline
+        if (payload.tripId) {
           await prisma.captain.update({
             data: {
-              isOnline: false,
+              isOnline: true,
+              inDrive: true,
               isPooling: false,
-              inDrive: false,
             },
             where: {
-              id: user,
+              id: info.user,
             },
           });
+
+          try {
+            const userId = await getUserFromTrip(payload.tripId);
+
+            if (userId) {
+              const userWs = userMap.get(userId);
+              if (userWs) {
+                userWs.send(
+                  JSON.stringify({
+                    type: "location:update",
+                    payload: {
+                      tripId: payload.tripId,
+                      lat: payload.lat,
+                      long: payload.long,
+                    },
+                  })
+                );
+              }
+            }
+          } catch {
+            new Error("User not connected");
+          }
+        } else {
+          await prisma.captain.update({
+            data: {
+              isOnline: true,
+              inDrive: false,
+              isPooling: true,
+            },
+            where: {
+              id: info.user,
+            },
+          });
+          await saveCaptainLocation(info.user, payload.lat, payload.long);
         }
+        ws.send(
+          JSON.stringify({
+            type: "location:updated",
+            payload: "Location sent",
+          })
+        );
+        break;
+      default:
+        break;
+    }
+  },
+  // clean up when client disconnects
+  async close(ws) {
+    if (ws.data) {
+      const { user, role } = (ws.data as any).info;
+      if (role === "user") {
+        userMap.delete(user);
+      } else if (role === "captain") {
+        captainMap.delete(user);
+        // make captain offline
+        await prisma.captain.update({
+          data: {
+            isOnline: false,
+            isPooling: false,
+            inDrive: false,
+          },
+          where: {
+            id: user,
+          },
+        });
       }
-    },
-  });
+    }
+  },
+});

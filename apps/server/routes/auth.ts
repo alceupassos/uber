@@ -95,7 +95,7 @@ export const auth = new Elysia({ prefix: "/auth" })
           secure: false,
           path: "/",
         });
-        return status(200, { message: "Login successful!" });
+        return status(200, { token, message: "Login successful!" });
       }
       return status(401, { message: "Login unsuccessful!" });
     },

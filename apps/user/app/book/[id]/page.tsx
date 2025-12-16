@@ -47,7 +47,9 @@ export default function RideDetails() {
   const [captainLocation, setCaptainLocation] = useState<
     [number, number] | null
   >(null);
-  const socket = useSocket();
+  const socket = useSocket(
+    "ws://localhost:8080/realtime?token=" + localStorage.getItem("token")
+  );
 
   const {
     data: trip,

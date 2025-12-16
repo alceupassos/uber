@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 
-const WS_URL = "ws://localhost:8080/realtime";
-
-export const useSocket = () => {
+export const useSocket = (url: string) => {
   const [socket, setSocket] = useState<WebSocket | null>(null);
 
   useEffect(() => {
-    const ws = new WebSocket(WS_URL);
+    const ws = new WebSocket(url);
 
     ws.onopen = () => {
       console.log("> hook: useSocket: connected");
