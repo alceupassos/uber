@@ -2,6 +2,8 @@ import { Elysia, status, t } from "elysia";
 import { prisma } from "../lib/prisma";
 import bcrypt from "bcrypt";
 import { jwtPlugin } from "../lib/jwt";
+import { sendEmail } from "../lib/resend";
+import jwt from "jsonwebtoken";
 
 export const auth = new Elysia({ prefix: "/auth" })
   .use(jwtPlugin)
@@ -85,7 +87,7 @@ export const auth = new Elysia({ prefix: "/auth" })
       const user = await prisma.user.findUnique({
         where: { email },
       });
-      if (user && (user.password = password)) {
+      if (user && (await bcrypt.compare(password, user.password))) {
         const token = await jwt.sign({ user: user.id, role: "user" });
         console.log("token generated", token);
         cookie.auth.set({
@@ -120,6 +122,57 @@ export const auth = new Elysia({ prefix: "/auth" })
     {
       body: t.Object({
         email: t.String({ format: "email" }),
+        password: t.String(),
+      }),
+    }
+  )
+  .post(
+    "/forgot",
+    async ({ body }) => {
+      const { email } = body;
+      const user = await prisma.user.findUnique({
+        where: { email },
+      });
+      if (!user) {
+        return status(404, { message: "User not found" });
+      }
+      const token = jwt.sign({ email, time: Date.now() }, Bun.env.JWT_SECRET!);
+      await sendEmail({
+        to: email,
+        subject: "Reset your password",
+        html: `<htmL><body><h1>Reset your password</h1><p>Click the link below to reset your password:</p><a href="http://localhost:3000/auth/reset?token=${token}">Reset password</a><p>The link is active for 5 mins only.</p></htmL></body>`,
+      });
+      return { message: "Password reset email sent!" };
+    },
+    {
+      body: t.Object({
+        email: t.String({ format: "email" }),
+      }),
+    }
+  )
+  .post(
+    "/reset",
+    async ({ query, body }) => {
+      const { token } = query;
+      const { password } = body;
+
+      const payload: any = jwt.verify(token, Bun.env.JWT_SECRET!);
+      console.log(payload);
+      if (!payload) return status(400, { message: "Invalid token" });
+      if (payload.time < Date.now() - 5 * 60 * 1000)
+        return status(400, { message: "Token expired" });
+      try {
+        await prisma.user.update({
+          where: { email: payload.email },
+          data: { password: await bcrypt.hash(password, 10) },
+        });
+      } catch (err) {
+        return status(400, { message: "Unkown Error" });
+      }
+      return status(200, { message: "Password updated!" });
+    },
+    {
+      body: t.Object({
         password: t.String(),
       }),
     }

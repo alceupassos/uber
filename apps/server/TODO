@@ -1,7 +1,7 @@
-[ ] Add error handling, logging, and validation.
+[x] Add error handling, logging, and validation.
 [ ] Implement security: rate limiting, CORS, CSRF, input sanitization.
 [ ] Write comprehensive tests (unit, integration).
-[ ] Add API docs (Swagger/OpenAPI).
+[x] Add API docs (Swagger/OpenAPI).
 [ ] Calculate fares dynamically based on distance, time, and traffic from location.
 [ ] Set up monitoring, metrics, and env var management.
 [ ] Profile management endpoints
