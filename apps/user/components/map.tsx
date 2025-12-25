@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, memo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
@@ -17,17 +17,15 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-export default function Map({
-  from,
-  to,
-}: {
-  from: [number, number];
-  to: [number, number];
-}) {
+function Map({ from, to }: { from: [number, number]; to: [number, number] }) {
   const mapRef = useRef<HTMLDivElement | null>(null);
-  //@ts-ignore
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<L.Marker[]>([]);
+  const routeLineRef = useRef<L.Polyline | null>(null);
+
+  // Initialize map once
   useEffect(() => {
-    if (!mapRef.current) return;
+    if (!mapRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapRef.current).setView(from, 13);
 
@@ -36,29 +34,53 @@ export default function Map({
       maxZoom: 19,
     }).addTo(map);
 
-    // Fetch and draw route
+    mapInstanceRef.current = map;
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Update route when from/to changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Clear previous markers and route
+    markersRef.current.forEach((marker) => marker.remove());
+    markersRef.current = [];
+    if (routeLineRef.current) {
+      routeLineRef.current.remove();
+      routeLineRef.current = null;
+    }
+
+    // Fetch and draw new route
     const url = `https://router.project-osrm.org/route/v1/driving/${from[1]},${from[0]};${to[1]},${to[0]}?overview=full&geometries=geojson`;
 
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        if (!data.routes?.length) return;
+        if (!data.routes?.length || !map) return;
 
         const route = data.routes[0].geometry.coordinates;
         const latlngs = route.map(([lng, lat]: number[]) => [lat, lng]);
 
         const line = L.polyline(latlngs, { color: "blue", weight: 5 }).addTo(
-          map
+          map,
         );
+        routeLineRef.current = line;
 
-        L.marker(from).addTo(map);
-        L.marker(to).addTo(map);
+        const originMarker = L.marker(from).addTo(map);
+        const destMarker = L.marker(to).addTo(map);
+        markersRef.current = [originMarker, destMarker];
 
         map.fitBounds(line.getBounds());
       })
       .catch((err) => console.log("OSRM ERROR", err));
-
-    return () => map.remove();
   }, [from, to]);
 
   return (
@@ -67,8 +89,18 @@ export default function Map({
       style={{
         height: "100%",
         width: "100%",
-        minHeight: "400px", // Force height so map is visible
+        minHeight: "400px",
       }}
     />
   );
 }
+
+// Memoize to prevent unnecessary re-renders when parent re-renders
+export default memo(Map, (prevProps, nextProps) => {
+  return (
+    prevProps.from[0] === nextProps.from[0] &&
+    prevProps.from[1] === nextProps.from[1] &&
+    prevProps.to[0] === nextProps.to[0] &&
+    prevProps.to[1] === nextProps.to[1]
+  );
+});

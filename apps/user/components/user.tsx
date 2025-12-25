@@ -8,12 +8,14 @@ export function useUser() {
     queryKey: ["user-info"],
     queryFn: async () => {
       const res = await api.user.get();
-      if (res.status === 200) {
-        return res.data;
-      } else {
+      if (res.status !== 200) {
         throw new Error("Failed to fetch user info");
       }
+      return res.data;
     },
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+    retry: 1, // Only retry once for auth endpoints
   });
 }
 

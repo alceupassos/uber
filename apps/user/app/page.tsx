@@ -34,6 +34,9 @@ export default async function Home() {
                 <Link href="/book" className="w-full">
                   <Button className="w-full">Book a Ride</Button>
                 </Link>
+                <Link href="/history" className="w-full">
+                  <Button className="w-full">Old rides</Button>
+                </Link>
                 <Link href="/auth/signout" className="w-full">
                   <Button variant="ghost" className="w-full">
                     Sign out

@@ -10,6 +10,7 @@ import {
 } from "../routes/ws";
 import { cors } from "@elysiajs/cors";
 import { captain } from "../routes/captain";
+import { haversine } from "../lib/math";
 
 const app = new Elysia({
   cookie: {
@@ -47,6 +48,39 @@ const app = new Elysia({
     }
   })
   .get("/", () => "Welcome to Uber Backend!")
+  .post(
+    "/price",
+    ({ body }) => {
+      const { origin, destination, capacity } = body;
+      const dist = haversine(
+        origin.latitude,
+        origin.longitude,
+        destination.latitude,
+        destination.longitude
+      );
+
+      // const surgeCharge = max(1, active_requests/active_drivers)
+
+      return {
+        price: dist * capacity * 0.4,
+      };
+    },
+    {
+      body: t.Object({
+        origin: t.Object({
+          name: t.String(),
+          latitude: t.Number(),
+          longitude: t.Number(),
+        }),
+        destination: t.Object({
+          name: t.String(),
+          latitude: t.Number(),
+          longitude: t.Number(),
+        }),
+        capacity: t.Number(),
+      }),
+    }
+  )
   .use(auth)
   .use(user)
   .use(captain)

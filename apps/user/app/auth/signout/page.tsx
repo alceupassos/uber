@@ -1,18 +1,42 @@
 "use client";
 
 import api from "@repo/eden";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { toast } from "sonner";
 
 export default function Page() {
-  useQuery({
-    queryKey: ["user-singout"],
-    queryFn: async () => {
+  const router = useRouter();
+
+  const mutation = useMutation({
+    mutationFn: async () => {
       const res = await api.auth.logout.get();
       if (res.status !== 200) {
-        console.error("there was an error in signout");
+        throw new Error("Failed to sign out");
       }
       return res.data;
     },
+    onSuccess: () => {
+      toast.success("Successfully signed out");
+      router.push("/auth/signin");
+    },
+    onError: () => {
+      toast.error("There was an error signing out");
+      router.push("/auth/signin");
+    },
   });
-  return <div>you are now signout!</div>;
+
+  useEffect(() => {
+    mutation.mutate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div className="flex items-center justify-center min-h-screen">
+      <div className="text-center">
+        <p className="text-lg">Signing you out...</p>
+      </div>
+    </div>
+  );
 }

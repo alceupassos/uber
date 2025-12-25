@@ -4,6 +4,7 @@ import { Decimal } from "decimal.js";
 import { firstCaptain } from "../lib/background";
 import { notifyCaptainTripStatus } from "./ws";
 import { jwtPlugin } from "../lib/jwt";
+import { haversine } from "../lib/math";
 
 export const user = new Elysia({ prefix: "/user" })
   .use(jwtPlugin)
@@ -48,6 +49,18 @@ export const user = new Elysia({ prefix: "/user" })
       });
       if (!user) return status(401, "Unauthorized");
       const otp = Math.floor(1000 + Math.random() * 9000).toString();
+
+      const dist = haversine(
+        origin.latitude,
+        origin.longitude,
+        destination.latitude,
+        destination.longitude
+      );
+
+      // const surgeCharge = max(1, active_requests/active_drivers)
+
+      const price = dist * capacity * 0.4;
+
       const trip = await prisma.trip.create({
         data: {
           user: { connect: { id: user.id } },
@@ -58,18 +71,18 @@ export const user = new Elysia({ prefix: "/user" })
           destLat: destination.latitude,
           destLng: destination.longitude,
           capacity,
-          pricing: new Decimal(0),
+          pricing: price,
           status: "REQUESTED",
           otp,
         },
       });
 
-      await firstCaptain(
-        trip.userId,
-        trip.id,
-        origin.latitude,
-        origin.longitude
-      );
+      // await firstCaptain(
+      //   trip.userId,
+      //   trip.id,
+      //   origin.latitude,
+      //   origin.longitude
+      // );
 
       return status(200, {
         id: trip.id,
