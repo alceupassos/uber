@@ -1,13 +1,7 @@
-import { Elysia, status, t } from "elysia";
-import { prisma } from "../lib/prisma";
+import { Elysia, t } from "elysia";
 import { auth } from "../routes/auth";
 import { user } from "../routes/user";
 import { swagger } from "@elysiajs/swagger";
-import {
-  ws,
-  notifyUserTripStatus,
-  notifyCaptainTripStatus,
-} from "../routes/ws";
 import { cors } from "@elysiajs/cors";
 import { captain } from "../routes/captain";
 import { haversine } from "../lib/math";
@@ -24,7 +18,7 @@ const app = new Elysia({
     cors({
       // exact frontend origin
       credentials: true,
-    })
+    }),
   )
   .use(
     swagger({
@@ -38,7 +32,7 @@ const app = new Elysia({
           description: "API docs for my ride app",
         },
       },
-    })
+    }),
   )
   .on("error", ({ code, error }) => {
     if (code === "NOT_FOUND") {
@@ -56,7 +50,7 @@ const app = new Elysia({
         origin.latitude,
         origin.longitude,
         destination.latitude,
-        destination.longitude
+        destination.longitude,
       );
 
       // const surgeCharge = max(1, active_requests/active_drivers)
@@ -79,21 +73,16 @@ const app = new Elysia({
         }),
         capacity: t.Number(),
       }),
-    }
+    },
   )
   .use(auth)
   .use(user)
-  .use(captain)
-  .use(ws);
-
-// userId, socket
-export const userMap = new Map<string, any>();
-export const captainMap = new Map<string, any>();
+  .use(captain);
 
 export type App = typeof app;
 
 app.listen(8080, () => {
   console.log(
-    `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`
+    `🦊 uber backend Elysia is running at ${app.server?.hostname}:${app.server?.port}`,
   );
 });

@@ -1,16 +1,14 @@
 "use client";
 
 import "leaflet/dist/leaflet.css";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import api from "@repo/eden";
 import { useQuery } from "@tanstack/react-query";
 import { MapPin, Navigation, Loader2, Shield } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
-import { useSocket } from "@/hooks/useSocket";
 
 const Map = dynamic(() => import("@/components/map"), { ssr: true });
 
@@ -37,6 +35,10 @@ interface Trip {
     id: string;
     name: string;
     vehicle?: string;
+    location?: {
+      lat: number;
+      lng: number;
+    } | null;
   } | null;
 }
 
@@ -44,18 +46,8 @@ export default function RideDetails() {
   const params = useParams();
   const rideId = params.id as string;
   const [status, setStatus] = useState<TripStatus | null>(null);
-  const [captainLocation, setCaptainLocation] = useState<
-    [number, number] | null
-  >(null);
-  const socket = useSocket(
-    "ws://localhost:8080/realtime?token=" + localStorage.getItem("token")
-  );
 
-  const {
-    data: trip,
-    isLoading,
-    refetch,
-  } = useQuery<Trip>({
+  const { data: trip, isLoading } = useQuery<Trip>({
     queryKey: ["trip", rideId],
     queryFn: async () => {
       const res = await api.user.trip({ id: rideId }).get();
@@ -72,46 +64,38 @@ export default function RideDetails() {
         pricing: tripData.pricing ? Number(tripData.pricing) : 0,
       };
     },
-    staleTime: 5000, // 5 seconds for real-time data
-    refetchInterval: 10000, // Poll every 10 seconds as backup
+    // Adaptive polling based on trip status
+    refetchInterval: (query) => {
+      const tripData = query.state.data;
+      if (!tripData) return 3000;
+
+      // Stop polling when trip is completed or cancelled
+      if (tripData.status === "COMPLETED" || tripData.status === "CANCELLED") {
+        return false;
+      }
+
+      // More frequent polling when captain is approaching (ACCEPTED status)
+      if (tripData.status === "ACCEPTED") {
+        return 2000; // 2 seconds - critical phase
+      }
+
+      // Default polling for other statuses
+      return 3000; // 3 seconds
+    },
+    refetchIntervalInBackground: true,
+    staleTime: 0, // Always fetch fresh data
   });
 
-  // Sync status from trip data
+  // Sync local status state from trip data
   useEffect(() => {
     if (trip?.status) {
+      // Show toast when status changes
+      if (status && status !== trip.status) {
+        toast.success(`Ride status updated: ${trip.status}`);
+      }
       setStatus(trip.status);
     }
-  }, [trip?.status]);
-
-  // Handle WebSocket messages
-  useEffect(() => {
-    if (!socket) return;
-    socket.send(JSON.stringify({ type: "subscribe:trip", payload: rideId }));
-    socket.onmessage = (event) => {
-      const msg = JSON.parse(event.data);
-      switch (msg.type) {
-        case "status:update":
-          if (msg.payload?.status) {
-            setStatus(msg.payload.status);
-            toast.success(`Ride status updated: ${msg.payload.status}`);
-            // Refetch trip data to get updated captain info
-            refetch();
-          }
-          break;
-        case "location:update":
-          if (msg.payload?.lat && msg.payload?.long) {
-            setCaptainLocation([msg.payload.lat, msg.payload.long]);
-          }
-          break;
-        case "subscribed":
-          console.log("Subscribed to trip updates", msg.payload);
-          break;
-        case "error":
-          toast.error(msg.payload || "WebSocket error");
-          break;
-      }
-    };
-  }, [socket, rideId, refetch]);
+  }, [trip?.status, status]);
 
   const getStatusColor = (status: TripStatus) => {
     switch (status) {
@@ -168,7 +152,8 @@ export default function RideDetails() {
         <span className="text-2xl font-bold">Ride Details</span>
         {status && (
           <span
-            className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(status)}`}>
+            className={`px-3 py-1 rounded-full text-sm font-semibold ${getStatusColor(status)}`}
+          >
             {getStatusLabel(status)}
           </span>
         )}
@@ -224,6 +209,11 @@ export default function RideDetails() {
             <Map
               from={[trip.originLat!, trip.originLng!]}
               to={[trip.destLat!, trip.destLng!]}
+              captainLocation={
+                trip.captain?.location
+                  ? [trip.captain.location.lat, trip.captain.location.lng]
+                  : null
+              }
             />
           </div>
         )}

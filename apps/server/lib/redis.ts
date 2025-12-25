@@ -10,7 +10,7 @@ export const redis = new Redis({
 export async function saveCaptainLocation(
   id: string,
   lat: number,
-  long: number
+  long: number,
 ) {
   await redis.geoadd("captain:locations", long, lat, id);
 }
@@ -20,7 +20,7 @@ export async function findNearestCaptains(
   userLat: number,
   userLong: number,
   radius: number = 5,
-  max: number = 5
+  max: number = 5,
 ) {
   // TODO: this function will search for nearest drivers and then check wheather they are available for ride
   const results = await redis.geosearch(
@@ -34,7 +34,7 @@ export async function findNearestCaptains(
     "WITHDIST",
     "ASC",
     "COUNT",
-    max
+    max,
   );
   for (const result in results) {
     const captain = await prisma.captain.findUnique({
@@ -83,4 +83,23 @@ export async function getUserFromTrip(tripId: string) {
   const userId = await redis.get(`trip:user:${tripId}`);
   if (!userId) return null;
   return userId;
+}
+
+export async function setTripCaptainLocation(
+  tripId: string,
+  lat: number,
+  lng: number,
+) {
+  await redis.set(
+    `trip:${tripId}:captain-location`,
+    JSON.stringify({ lat, lng, updatedAt: Date.now() }),
+    "EX",
+    10, // Expire after 10 seconds (ensures stale data cleanup)
+  );
+}
+
+export async function getTripCaptainLocation(tripId: string) {
+  const data = await redis.get(`trip:${tripId}:captain-location`);
+  if (!data) return null;
+  return JSON.parse(data);
 }

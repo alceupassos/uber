@@ -1,102 +1,163 @@
-import Image, { type ImageProps } from "next/image";
-import { Button } from "@repo/ui/button";
-import styles from "./page.module.css";
+"use client";
 
-type Props = Omit<ImageProps, "src"> & {
-  srcLight: string;
-  srcDark: string;
-};
+import { useLocationTracking } from "../hooks/useLocationTracking";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 
-const ThemeImage = (props: Props) => {
-  const { srcLight, srcDark, ...rest } = props;
+export default function CaptainDashboard() {
+  const router = useRouter();
+  const [isOnline, setIsOnline] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isTracking, error, lastLocation } = useLocationTracking({
+    enabled: isOnline,
+  });
+
+  // Check authentication on mount
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      router.push("/auth/signin");
+    } else {
+      setIsAuthenticated(true);
+    }
+  }, [router]);
+
+  const handleToggleOnline = () => {
+    if (!isOnline) {
+      // Going online - start tracking
+      setIsOnline(true);
+      toast.success("You are now online and accepting trips");
+    } else {
+      // Going offline - stop tracking
+      setIsOnline(false);
+      toast.info("You are now offline");
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    toast.success("Logged out successfully");
+    router.push("/auth/signin");
+  };
+
+  // Don't render until auth check is complete
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
-    <>
-      <Image {...rest} src={srcLight} className="imgLight" />
-      <Image {...rest} src={srcDark} className="imgDark" />
-    </>
-  );
-};
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 to-teal-100 p-4">
+      <div className="max-w-2xl mx-auto mt-8">
+        <div className="bg-white rounded-lg shadow-lg p-6">
+          {/* Header with logout button */}
+          <div className="flex items-center justify-between mb-6">
+            <h1 className="text-3xl font-bold text-gray-800">
+              Captain Dashboard
+            </h1>
+            <Button onClick={handleLogout} variant="outline" size="sm">
+              Logout
+            </Button>
+          </div>
 
-export default function Home() {
-  return (
-    <div className={styles.page}>
-      <main className={styles.main}>
-        <ThemeImage
-          className={styles.logo}
-          srcLight="turborepo-dark.svg"
-          srcDark="turborepo-light.svg"
-          alt="Turborepo logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol>
-          <li>
-            Get started by editing <code>apps/docs/app/page.tsx</code>
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+          {/* Online/Offline Toggle */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+              <div>
+                <h2 className="text-xl font-semibold text-gray-700">
+                  {isOnline ? "🟢 Online" : "⚫ Offline"}
+                </h2>
+                <p className="text-sm text-gray-500 mt-1">
+                  {isOnline ? "Accepting trips nearby" : "Not accepting trips"}
+                </p>
+              </div>
+              <button
+                onClick={handleToggleOnline}
+                className={`px-6 py-3 rounded-lg font-semibold transition-all ${
+                  isOnline
+                    ? "bg-red-500 hover:bg-red-600 text-white"
+                    : "bg-green-500 hover:bg-green-600 text-white"
+                }`}
+              >
+                {isOnline ? "Go Offline" : "Go Online"}
+              </button>
+            </div>
+          </div>
 
-        <div className={styles.ctas}>
-          <a
-            className={styles.primary}
-            href="https://vercel.com/new/clone?demo-description=Learn+to+implement+a+monorepo+with+a+two+Next.js+sites+that+has+installed+three+local+packages.&demo-image=%2F%2Fimages.ctfassets.net%2Fe5382hct74si%2F4K8ZISWAzJ8X1504ca0zmC%2F0b21a1c6246add355e55816278ef54bc%2FBasic.png&demo-title=Monorepo+with+Turborepo&demo-url=https%3A%2F%2Fexamples-basic-web.vercel.sh%2F&from=templates&project-name=Monorepo+with+Turborepo&repository-name=monorepo-turborepo&repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fturborepo%2Ftree%2Fmain%2Fexamples%2Fbasic&root-directory=apps%2Fdocs&skippable-integrations=1&teamSlug=vercel&utm_source=create-turbo"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className={styles.logo}
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            href="https://turborepo.com/docs?utm_source"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.secondary}
-          >
-            Read our docs
-          </a>
+          {/* Location Tracking Status */}
+          {isOnline && (
+            <div className="mb-6">
+              <h3 className="text-lg font-semibold text-gray-700 mb-3">
+                Location Tracking
+              </h3>
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                {isTracking ? (
+                  <div>
+                    <p className="text-green-600 font-medium mb-2">
+                      ✓ Location tracking active
+                    </p>
+                    {lastLocation && (
+                      <p className="text-sm text-gray-600">
+                        Last update: Lat {lastLocation.lat.toFixed(6)}, Lng{" "}
+                        {lastLocation.lng.toFixed(6)}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 mt-2">
+                      Your location is being shared every 3 seconds to match
+                      with nearby trips.
+                    </p>
+                  </div>
+                ) : (
+                  <p className="text-yellow-600 font-medium">
+                    ⚠ Waiting for location permissions...
+                  </p>
+                )}
+              </div>
+
+              {error && (
+                <div className="mt-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-red-600 font-medium">Error: {error}</p>
+                  <p className="text-sm text-gray-600 mt-1">
+                    Please enable location permissions in your browser settings.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Instructions */}
+          <div className="mt-8 p-4 bg-gray-100 rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              How it works
+            </h3>
+            <ol className="list-decimal list-inside space-y-2 text-sm text-gray-600">
+              <li>Click &quot;Go Online&quot; to start accepting trips</li>
+              <li>Allow location permissions when prompted</li>
+              <li>Your location will be shared every 3 seconds</li>
+              <li>
+                You&apos;ll be matched with nearby trip requests automatically
+              </li>
+              <li>Accept trips and navigate to pickup location</li>
+            </ol>
+          </div>
+
+          {/* Coming Soon Features */}
+          <div className="mt-6 p-4 border-2 border-dashed border-gray-300 rounded-lg">
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">
+              Coming Soon
+            </h3>
+            <ul className="space-y-1 text-sm text-gray-500">
+              <li>• Active trip display</li>
+              <li>• Trip acceptance/rejection</li>
+              <li>• Navigation to pickup</li>
+              <li>• OTP verification</li>
+              <li>• Trip completion</li>
+              <li>• Earnings dashboard</li>
+            </ul>
+          </div>
         </div>
-        <Button appName="docs" className={styles.secondary}>
-          Open alert
-        </Button>
-      </main>
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com/templates?search=turborepo&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          href="https://turborepo.com?utm_source=create-turbo"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to turborepo.com →
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }

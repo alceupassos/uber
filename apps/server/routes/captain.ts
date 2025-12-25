@@ -1,7 +1,11 @@
 import { Elysia, status, t } from "elysia";
 import { jwtPlugin } from "../lib/jwt";
 import { prisma } from "../lib/prisma";
-import { notifyCaptainTripStatus, notifyUserTripStatus } from "./ws";
+import {
+  saveCaptainLocation,
+  setTripCaptainLocation,
+  findNearestCaptains,
+} from "../lib/redis";
 
 export const captain = new Elysia({ prefix: "/captain" })
   .use(jwtPlugin)
@@ -41,8 +45,7 @@ export const captain = new Elysia({ prefix: "/captain" })
           where: { id },
           data: { status: "CANCELLED" },
         });
-        // Notify user
-        notifyUserTripStatus(trip.userId, trip.id, "CANCELLED");
+        // User will get update via polling
       } else {
         return status(401, "Unauthorized");
       }
@@ -53,7 +56,7 @@ export const captain = new Elysia({ prefix: "/captain" })
       body: t.Object({
         id: t.String(),
       }),
-    }
+    },
   )
   .post(
     "/pickup",
@@ -83,8 +86,7 @@ export const captain = new Elysia({ prefix: "/captain" })
         data: { status: "ON_TRIP" },
       });
 
-      // Notify user
-      notifyUserTripStatus(trip.userId, trip.id, "ON_TRIP");
+      // User will get update via polling
       return { message: "Trip picked up successfully!" };
     },
     {
@@ -92,7 +94,7 @@ export const captain = new Elysia({ prefix: "/captain" })
         id: t.String(),
         otp: t.String(),
       }),
-    }
+    },
   )
   .post(
     "/complete",
@@ -116,15 +118,14 @@ export const captain = new Elysia({ prefix: "/captain" })
         data: { status: "COMPLETED" },
       });
 
-      // Notify user
-      notifyUserTripStatus(trip.userId, trip.id, "COMPLETED");
+      // User will get update via polling
       return { message: "Trip completed successfully!" };
     },
     {
       body: t.Object({
         id: t.String(),
       }),
-    }
+    },
   )
   .get("/history", async ({ jwt, headers: { authorization } }) => {
     if (!authorization) return status(401, "Unauthorized");
@@ -144,4 +145,71 @@ export const captain = new Elysia({ prefix: "/captain" })
     });
 
     return { trips };
-  });
+  })
+  .post(
+    "/location",
+    async ({ body, payload }) => {
+      const { lat, lng, tripId } = body;
+      const captainId = payload.user as string;
+
+      // Always save to Redis geospatial index for matching
+      await saveCaptainLocation(captainId, lat, lng);
+
+      // If captain is on an active trip, cache location for user polling
+      if (tripId) {
+        await setTripCaptainLocation(tripId, lat, lng);
+
+        // Update captain status to in-drive
+        await prisma.captain.update({
+          where: { id: captainId },
+          data: {
+            isOnline: true,
+            inDrive: true,
+            isPooling: false,
+          },
+        });
+      } else {
+        // Captain is pooling for trips - check for nearby requests
+        await prisma.captain.update({
+          where: { id: captainId },
+          data: {
+            isOnline: true,
+            inDrive: false,
+            isPooling: true,
+          },
+        });
+
+        // Find and match with nearby REQUESTED trips
+        const requestedTrips = await prisma.trip.findMany({
+          where: {
+            status: "REQUESTED",
+            captainId: null,
+          },
+          take: 5, // Check up to 5 pending trips
+          orderBy: { createdAt: "asc" },
+        });
+
+        // Attempt to match each trip
+        for (const trip of requestedTrips) {
+          if (trip.originLat && trip.originLng) {
+            await findNearestCaptains(
+              trip.id,
+              Number(trip.originLat),
+              Number(trip.originLng),
+              5, // 5km radius
+              1, // Just find 1 captain (this captain if nearby)
+            );
+          }
+        }
+      }
+
+      return { success: true };
+    },
+    {
+      body: t.Object({
+        lat: t.Number(),
+        lng: t.Number(),
+        tripId: t.Optional(t.String()),
+      }),
+    },
+  );

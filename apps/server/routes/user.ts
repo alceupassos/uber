@@ -2,9 +2,9 @@ import { Elysia, t, status } from "elysia";
 import { prisma } from "../lib/prisma";
 import { Decimal } from "decimal.js";
 import { firstCaptain } from "../lib/background";
-import { notifyCaptainTripStatus } from "./ws";
 import { jwtPlugin } from "../lib/jwt";
 import { haversine } from "../lib/math";
+import { getCaptainLocation } from "../lib/redis";
 
 export const user = new Elysia({ prefix: "/user" })
   .use(jwtPlugin)
@@ -54,7 +54,7 @@ export const user = new Elysia({ prefix: "/user" })
         origin.latitude,
         origin.longitude,
         destination.latitude,
-        destination.longitude
+        destination.longitude,
       );
 
       // const surgeCharge = max(1, active_requests/active_drivers)
@@ -102,7 +102,7 @@ export const user = new Elysia({ prefix: "/user" })
         }),
         capacity: t.Number(),
       }),
-    }
+    },
   )
   .post(
     "/cancel",
@@ -122,10 +122,7 @@ export const user = new Elysia({ prefix: "/user" })
           where: { id },
           data: { status: "CANCELLED" },
         });
-        // Notify captain if assigned
-        if (trip.captainId) {
-          notifyCaptainTripStatus(trip.captainId, trip.id, "CANCELLED");
-        }
+        // Captain will get update via polling
       } else {
         return status(401, "Unauthorized");
       }
@@ -136,7 +133,7 @@ export const user = new Elysia({ prefix: "/user" })
       body: t.Object({
         id: t.String(),
       }),
-    }
+    },
   )
   .get("/trip/:id", async ({ params, payload }) => {
     if (payload.role !== "user") return status(401, "Unauthorized");
@@ -152,7 +149,25 @@ export const user = new Elysia({ prefix: "/user" })
       return status(403, { message: "Unauthorized to view this trip" });
     }
 
-    return trip;
+    // Fetch captain's live location from Redis if captain is assigned
+    let captainLocation = null;
+    if (trip.captainId) {
+      const location = await getCaptainLocation(trip.captainId);
+      if (location) {
+        captainLocation = { lat: location.lat, lng: location.long };
+      }
+    }
+
+    // Return trip with captain location
+    return {
+      ...trip,
+      captain: trip.captain
+        ? {
+            ...trip.captain,
+            location: captainLocation,
+          }
+        : null,
+    };
   })
   .get("/history", async ({ payload }) => {
     if (payload.role !== "user") return status(401, "Unauthorized");

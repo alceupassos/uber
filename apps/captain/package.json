@@ -11,10 +11,18 @@
     "check-types": "next typegen && tsc --noEmit"
   },
   "dependencies": {
+    "@radix-ui/react-slot": "^1.1.1",
+    "@repo/eden": "*",
     "@repo/ui": "*",
+    "@tanstack/react-query": "^5.90.12",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.469.0",
     "next": "^16.0.7",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "sonner": "^1.7.3",
+    "tailwind-merge": "^2.6.0"
   },
   "devDependencies": {
     "@repo/eslint-config": "*",

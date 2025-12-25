@@ -17,11 +17,20 @@ L.Icon.Default.mergeOptions({
   shadowUrl,
 });
 
-function Map({ from, to }: { from: [number, number]; to: [number, number] }) {
+function Map({
+  from,
+  to,
+  captainLocation,
+}: {
+  from: [number, number];
+  to: [number, number];
+  captainLocation?: [number, number] | null;
+}) {
   const mapRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
   const markersRef = useRef<L.Marker[]>([]);
   const routeLineRef = useRef<L.Polyline | null>(null);
+  const captainMarkerRef = useRef<L.Marker | null>(null);
 
   // Initialize map once
   useEffect(() => {
@@ -83,6 +92,34 @@ function Map({ from, to }: { from: [number, number]; to: [number, number] }) {
       .catch((err) => console.log("OSRM ERROR", err));
   }, [from, to]);
 
+  // Update captain location marker when it changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Remove old captain marker
+    if (captainMarkerRef.current) {
+      captainMarkerRef.current.remove();
+      captainMarkerRef.current = null;
+    }
+
+    // Add new captain marker if location provided
+    if (captainLocation) {
+      // Create custom icon for captain (different color)
+      const captainIcon = L.divIcon({
+        html: '<div style="background-color: #10b981; width: 25px; height: 25px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 6px rgba(0,0,0,0.3);"></div>',
+        className: "",
+        iconSize: [25, 25],
+        iconAnchor: [12, 12],
+      });
+
+      const marker = L.marker(captainLocation, { icon: captainIcon }).addTo(
+        map,
+      );
+      captainMarkerRef.current = marker;
+    }
+  }, [captainLocation]);
+
   return (
     <div
       ref={mapRef}
@@ -97,10 +134,19 @@ function Map({ from, to }: { from: [number, number]; to: [number, number] }) {
 
 // Memoize to prevent unnecessary re-renders when parent re-renders
 export default memo(Map, (prevProps, nextProps) => {
-  return (
+  const sameOriginDest =
     prevProps.from[0] === nextProps.from[0] &&
     prevProps.from[1] === nextProps.from[1] &&
     prevProps.to[0] === nextProps.to[0] &&
-    prevProps.to[1] === nextProps.to[1]
-  );
+    prevProps.to[1] === nextProps.to[1];
+
+  // Compare captain location
+  const sameCaptainLocation =
+    (!prevProps.captainLocation && !nextProps.captainLocation) ||
+    (!!prevProps.captainLocation &&
+      !!nextProps.captainLocation &&
+      prevProps.captainLocation[0] === nextProps.captainLocation[0] &&
+      prevProps.captainLocation[1] === nextProps.captainLocation[1]);
+
+  return sameOriginDest && sameCaptainLocation;
 });
