@@ -54,7 +54,7 @@ export const user = new Elysia({ prefix: "/user" })
         origin.latitude,
         origin.longitude,
         destination.latitude,
-        destination.longitude,
+        destination.longitude
       );
 
       // const surgeCharge = max(1, active_requests/active_drivers)
@@ -77,12 +77,12 @@ export const user = new Elysia({ prefix: "/user" })
         },
       });
 
-      // await firstCaptain(
-      //   trip.userId,
-      //   trip.id,
-      //   origin.latitude,
-      //   origin.longitude
-      // );
+      await firstCaptain(
+        trip.userId,
+        trip.id,
+        origin.latitude,
+        origin.longitude
+      );
 
       return status(200, {
         id: trip.id,
@@ -102,7 +102,7 @@ export const user = new Elysia({ prefix: "/user" })
         }),
         capacity: t.Number(),
       }),
-    },
+    }
   )
   .post(
     "/cancel",
@@ -133,7 +133,7 @@ export const user = new Elysia({ prefix: "/user" })
       body: t.Object({
         id: t.String(),
       }),
-    },
+    }
   )
   .get("/trip/:id", async ({ params, payload }) => {
     if (payload.role !== "user") return status(401, "Unauthorized");
@@ -170,11 +170,8 @@ export const user = new Elysia({ prefix: "/user" })
     };
   })
   .get("/history", async ({ payload }) => {
-    if (payload.role !== "user") return status(401, "Unauthorized");
-
     const trips = await prisma.trip.findMany({
       where: { userId: payload.user },
-      include: { captain: true },
       orderBy: { createdAt: "desc" },
     });
 

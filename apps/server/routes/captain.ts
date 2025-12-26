@@ -1,11 +1,7 @@
 import { Elysia, status, t } from "elysia";
 import { jwtPlugin } from "../lib/jwt";
 import { prisma } from "../lib/prisma";
-import {
-  saveCaptainLocation,
-  setTripCaptainLocation,
-  findNearestCaptains,
-} from "../lib/redis";
+import { saveCaptainLocation, findNearestCaptains } from "../lib/redis";
 
 export const captain = new Elysia({ prefix: "/captain" })
   .use(jwtPlugin)
@@ -56,7 +52,7 @@ export const captain = new Elysia({ prefix: "/captain" })
       body: t.Object({
         id: t.String(),
       }),
-    },
+    }
   )
   .post(
     "/pickup",
@@ -94,7 +90,7 @@ export const captain = new Elysia({ prefix: "/captain" })
         id: t.String(),
         otp: t.String(),
       }),
-    },
+    }
   )
   .post(
     "/complete",
@@ -125,19 +121,9 @@ export const captain = new Elysia({ prefix: "/captain" })
       body: t.Object({
         id: t.String(),
       }),
-    },
-  )
-  .get("/history", async ({ jwt, headers: { authorization } }) => {
-    if (!authorization) return status(401, "Unauthorized");
-    let payload: any;
-    try {
-      payload = await jwt.verify(authorization);
-    } catch {
-      return status(401, "Unauthorized");
     }
-
-    if (payload.role !== "captain") return status(401, "Unauthorized");
-
+  )
+  .get("/history", async ({ payload }) => {
     const trips = await prisma.trip.findMany({
       where: { captainId: payload.user as string },
       include: { user: true },
@@ -149,67 +135,17 @@ export const captain = new Elysia({ prefix: "/captain" })
   .post(
     "/location",
     async ({ body, payload }) => {
-      const { lat, lng, tripId } = body;
+      const { lat, lng } = body;
       const captainId = payload.user as string;
 
       // Always save to Redis geospatial index for matching
+      // captain pool this to send there realtime location every 3s max.
       await saveCaptainLocation(captainId, lat, lng);
-
-      // If captain is on an active trip, cache location for user polling
-      if (tripId) {
-        await setTripCaptainLocation(tripId, lat, lng);
-
-        // Update captain status to in-drive
-        await prisma.captain.update({
-          where: { id: captainId },
-          data: {
-            isOnline: true,
-            inDrive: true,
-            isPooling: false,
-          },
-        });
-      } else {
-        // Captain is pooling for trips - check for nearby requests
-        await prisma.captain.update({
-          where: { id: captainId },
-          data: {
-            isOnline: true,
-            inDrive: false,
-            isPooling: true,
-          },
-        });
-
-        // Find and match with nearby REQUESTED trips
-        const requestedTrips = await prisma.trip.findMany({
-          where: {
-            status: "REQUESTED",
-            captainId: null,
-          },
-          take: 5, // Check up to 5 pending trips
-          orderBy: { createdAt: "asc" },
-        });
-
-        // Attempt to match each trip
-        for (const trip of requestedTrips) {
-          if (trip.originLat && trip.originLng) {
-            await findNearestCaptains(
-              trip.id,
-              Number(trip.originLat),
-              Number(trip.originLng),
-              5, // 5km radius
-              1, // Just find 1 captain (this captain if nearby)
-            );
-          }
-        }
-      }
-
-      return { success: true };
     },
     {
       body: t.Object({
         lat: t.Number(),
         lng: t.Number(),
-        tripId: t.Optional(t.String()),
       }),
-    },
+    }
   );

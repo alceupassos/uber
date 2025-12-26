@@ -1,7 +1,7 @@
 import { prisma } from "../lib/prisma";
 import { redis } from "../lib/redis";
 import { Captain } from "../generated/prisma/client";
-import { notifyUserTripStatus } from "../routes/ws";
+// import { notifyUserTripStatus } from "../routes/ws";
 
 export const firstCaptain = async (
   userId: string,
@@ -45,7 +45,7 @@ export const firstCaptain = async (
       data: { captainId: finalCaptain.id },
     });
     // send update to user that captain is found
-    notifyUserTripStatus(userId, tripId, "CAPTAIN_FOUND");
+    // notifyUserTripStatus(userId, tripId, "CAPTAIN_FOUND");
   }
 
   return finalCaptain;

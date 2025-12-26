@@ -10,23 +10,22 @@ import { MButton } from "@/components/mutation-button";
 import api from "@repo/eden";
 import { useRouter } from "next/navigation";
 
-export default function CaptainSignIn() {
+export default function Login() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   const mutation = useMutation({
     mutationFn: async () => {
-      const res = await api.auth.captain.login.post({
+      const res = await api.auth.signin.post({
         email,
         password,
+        role: "captain",
       });
       if (res.status === 200) {
-        // IMPORTANT: Captain login returns just the token string, not an object
-        const token = res.data as unknown as string;
-        localStorage.setItem("token", token);
-        toast.success("Sign in successful");
+        toast.success("Signin Successful");
         router.push("/");
+        localStorage.setItem("token", res.data?.token!);
       } else {
         toast.error("Invalid credentials");
       }
@@ -34,35 +33,36 @@ export default function CaptainSignIn() {
   });
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-emerald-50 to-teal-100 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Captain Sign In</CardTitle>
+          <CardTitle className="text-2xl">Login</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
           <Input
             value={email}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setEmail(e.target.value)
-            }
+            onChange={(e) => setEmail(e.target.value)}
             placeholder="Email"
-            type="email"
           />
           <Input
             value={password}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-              setPassword(e.target.value)
-            }
+            onChange={(e) => setPassword(e.target.value)}
             type="password"
             placeholder="Password"
           />
+          <div className="text-center text-sm">
+            Forgot password{" "}
+            <Link href="/auth/signup" className="text-primary hover:underline">
+              reset?
+            </Link>
+          </div>
           <MButton mutation={mutation} className="w-full">
-            Sign In
+            Login
           </MButton>
           <div className="text-center text-sm">
-            Don&apos;t have an account?{" "}
+            Don't have an account?{" "}
             <Link href="/auth/signup" className="text-primary hover:underline">
-              Sign Up
+              Sign up
             </Link>
           </div>
         </CardContent>
