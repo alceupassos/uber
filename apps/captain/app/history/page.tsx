@@ -1,155 +1,171 @@
 "use client";
 
-import { Card, CardContent } from "@/components/ui/card";
 import api from "@repo/eden";
+import { OnyxButton } from "@repo/ui/onyx-button";
+import { OnyxCard } from "@repo/ui/onyx-card";
 import { useQuery } from "@tanstack/react-query";
-import { MapPin, Navigation, Loader2, Calendar, ChevronLeft, ArrowRight, User as UserIcon } from "lucide-react";
+import { motion } from "framer-motion";
+import {
+  MapPin,
+  Navigation,
+  Loader2,
+  Calendar,
+  ChevronLeft,
+  DollarSign,
+  History as HistoryIcon,
+  CircleCheck,
+  Zap,
+  Clock,
+  TrendingUp
+} from "lucide-react";
 import Link from "next/link";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import { useRouter } from "next/navigation";
+import { cn } from "@/lib/utils";
 
-type TripStatus =
-  | "REQUESTED"
-  | "ACCEPTED"
-  | "ON_TRIP"
-  | "COMPLETED"
-  | "CANCELLED";
-
-interface Trip {
-  id: string;
-  origin: string;
-  destination: string;
-  status: TripStatus;
-  pricing: any;
-  capacity: number;
-  createdAt: any;
-  user: {
-    name: any;
-    email: string;
-  };
-}
-
-export default function CaptainHistory() {
-  const { data, isLoading } = useQuery<{ trips: Trip[] }>({
+export default function History() {
+  const router = useRouter();
+  const { data, isLoading } = useQuery({
     queryKey: ["captain-history"],
     queryFn: async () => {
       const res = await api.captain.history.get();
-      if (res.status !== 200) throw new Error("Failed to fetch");
-      return res.data || { trips: [] };
+      if (res.status !== 200) {
+        throw new Error("Failed to fetch history");
+      }
+      return res.data;
     },
   });
 
-  const trips = data?.trips || [];
-
-  const getStatusDisplay = (status: TripStatus) => {
-    switch (status) {
-      case "COMPLETED":
-        return { label: "Completed", color: "bg-emerald-500/10 text-emerald-500" };
-      case "CANCELLED":
-        return { label: "Cancelled", color: "bg-red-500/10 text-red-500" };
-      case "ON_TRIP":
-        return { label: "On Trip", color: "bg-blue-500/10 text-blue-500" };
-      case "ACCEPTED":
-        return { label: "In Progress", color: "bg-yellow-500/10 text-yellow-500" };
-      default:
-        return { label: status, color: "bg-secondary text-muted-foreground" };
-    }
-  };
+  const trips = (data as any)?.trips || [];
 
   if (isLoading) {
     return (
-      <div className="p-6 space-y-6">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-10 w-10 rounded-full" />
-          <Skeleton className="h-10 w-48 rounded-xl" />
-        </div>
-        {[1, 2, 3].map(i => <Skeleton key={i} className="h-40 rounded-3xl" />)}
+      <div className="min-h-screen bg-background p-6 flex flex-col items-center justify-center gap-4">
+        <Loader2 className="animate-spin h-10 w-10 text-primary" />
+        <p className="text-[10px] font-black uppercase tracking-[0.3em] opacity-40">Decrypting Logs</p>
       </div>
     );
   }
 
   return (
-    <main className="min-h-screen bg-background text-foreground pb-10">
-      {/* Header */}
-      <div className="p-6 flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="rounded-full bg-accent/50"
-        >
-          <Link href="/">
-            <ChevronLeft className="w-6 h-6" />
-          </Link>
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-black italic tracking-tight uppercase">History</h1>
-          <p className="text-xs text-muted-foreground font-bold uppercase tracking-widest leading-none">Your Performance</p>
-        </div>
+    <main className="min-h-screen bg-background text-foreground pb-20 relative overflow-x-hidden">
+      <div className="fixed inset-0 pointer-events-none overflow-hidden opacity-30">
+        <div className="absolute top-[30%] -left-[10%] w-[50%] h-[50%] bg-emerald-500/5 blur-[120px] rounded-full" />
       </div>
 
-      <div className="px-6 space-y-4">
-        {!trips || trips.length === 0 ? (
-          <div className="py-24 text-center space-y-4 opacity-50">
-            <div className="p-6 bg-accent/20 rounded-full w-20 h-20 mx-auto flex items-center justify-center">
-              <Calendar className="w-10 h-10" />
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative z-10 px-6">
+        <header className="py-8 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <OnyxButton
+              variant="secondary"
+              size="sm"
+              onClick={() => router.push("/")}
+              className="rounded-full h-11 w-11 p-0 border-white/10 bg-white/5"
+            >
+              <ChevronLeft className="w-6 h-6" />
+            </OnyxButton>
+            <div>
+              <h1 className="text-3xl font-black italic tracking-tighter uppercase leading-none">Earnings</h1>
+              <p className="text-[10px] text-primary font-black uppercase tracking-[0.2em] mt-1">Operational History</p>
             </div>
-            <p className="font-black text-xl">No rides yet</p>
-            <p className="text-sm">Complete your first trip to start tracking your history.</p>
           </div>
+          <Link href="/stats">
+            <OnyxButton variant="secondary" size="sm" className="rounded-full px-4 border-white/5 bg-white/5 backdrop-blur-xl">
+              <TrendingUp className="w-4 h-4 text-primary" />
+            </OnyxButton>
+          </Link>
+        </header>
+
+        {/* HUD Summary */}
+        <div className="grid grid-cols-2 gap-4 mb-10">
+          <OnyxCard className="p-6 bg-white/[0.03] border-white/5">
+            <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Total Yield</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-xs font-bold text-primary">$</span>
+              <span className="text-3xl font-black italic tracking-tighter">1,240</span>
+            </div>
+          </OnyxCard>
+          <OnyxCard className="p-6 bg-white/[0.03] border-white/5">
+            <p className="text-[9px] font-black uppercase tracking-widest opacity-40 mb-2">Engagements</p>
+            <div className="flex items-baseline gap-1">
+              <span className="text-3xl font-black italic tracking-tighter">48</span>
+              <span className="text-[10px] uppercase font-black opacity-30 px-1">Successful</span>
+            </div>
+          </OnyxCard>
+        </div>
+
+        {!trips || trips.length === 0 ? (
+          <OnyxCard glass className="p-12 text-center border-white/5 mt-6">
+            <div className="flex flex-col items-center gap-6">
+              <div className="p-6 bg-white/5 rounded-full">
+                <Zap className="w-12 h-12 opacity-20" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-2xl font-black italic uppercase tracking-tighter">No Active Logs</p>
+                <p className="text-sm font-medium text-muted-foreground">Go online to start recording performance data.</p>
+              </div>
+              <Link href="/" className="pt-4">
+                <OnyxButton variant="primary" size="lg" className="rounded-2xl">
+                  Go Online
+                </OnyxButton>
+              </Link>
+            </div>
+          </OnyxCard>
         ) : (
-          trips.map((trip) => {
-            const status = getStatusDisplay(trip.status);
-            return (
-              <Card key={trip.id} className="bg-secondary/20 border border-border/10 rounded-[2rem] overflow-hidden group">
-                <CardContent className="p-5 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div className="flex items-center gap-2">
-                      <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${status.color}`}>
-                        {status.label}
-                      </span>
-                      <span className="text-[10px] font-bold opacity-30">
-                        {new Date(trip.createdAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <p className="text-xl font-black text-primary">
-                      ${Number(trip.pricing).toFixed(2)}
-                    </p>
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-3 relative px-1">
-                    <div className="absolute left-[3px] top-2 bottom-2 w-[1px] bg-foreground/10" />
-                    <div className="flex items-center gap-3">
-                      <div className="h-1.5 w-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
-                      <p className="text-[11px] font-medium line-clamp-1">{trip.origin}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <div className="h-1.5 w-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                      <p className="text-[11px] font-medium line-clamp-1">{trip.destination}</p>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-border/10 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="h-8 w-8 rounded-full bg-accent flex items-center justify-center">
-                        <UserIcon className="w-4 h-4 opacity-50" />
+          <div className="space-y-6">
+            {trips.map((trip: any, i: number) => (
+              <motion.div
+                key={trip.id}
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: i * 0.05 }}
+              >
+                <OnyxCard glass className="p-6 border-white/5">
+                  <div className="flex justify-between items-start mb-6">
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2">
+                        <div className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest bg-emerald-500/10 text-emerald-500 flex items-center gap-1.5">
+                          <CircleCheck className="w-3 h-3" />
+                          COMPLETED
+                        </div>
+                        <div className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest opacity-30">
+                          <Clock className="h-3 w-3" />
+                          {new Date(trip.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </div>
                       </div>
-                      <span className="text-xs font-bold">{trip.user.name}</span>
+
+                      <div className="space-y-3 relative">
+                        <div className="absolute left-2 top-2 bottom-2 w-[1px] bg-white/10" />
+                        <div className="flex items-start gap-4 pl-6 relative">
+                          <div className="w-1.5 h-1.5 rounded-sm mt-1.5 bg-white/40" />
+                          <p className="text-xs font-bold opacity-60 line-clamp-1">{trip.origin}</p>
+                        </div>
+                        <div className="flex items-start gap-4 pl-6 relative">
+                          <div className="w-1.5 h-1.5 rounded-full mt-1.5 bg-primary" />
+                          <p className="text-xs font-bold opacity-90 line-clamp-1">{trip.destination}</p>
+                        </div>
+                      </div>
                     </div>
-                    {trip.status === "ACCEPTED" && (
-                      <Link href={`/trips/${trip.id}`}>
-                        <Button size="sm" variant="outline" className="rounded-xl text-[10px] font-black h-8">
-                          VIEW DETAILS <ArrowRight className="ml-1 w-3 h-3" />
-                        </Button>
-                      </Link>
-                    )}
+
+                    <div className="text-right">
+                      <p className="text-2xl font-black italic tracking-tighter text-white">
+                        +${Number(trip.pricing * 0.8).toFixed(2)}
+                      </p>
+                      <p className="text-[10px] font-black uppercase opacity-20 tracking-widest mt-1">Net Earnings</p>
+                    </div>
                   </div>
-                </CardContent>
-              </Card>
-            );
-          })
+
+                  <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                    <p className="text-[10px] font-black uppercase tracking-widest opacity-20">Ref: #{trip.id.slice(0, 8)}</p>
+                    <OnyxButton variant="ghost" size="sm" className="h-8 text-[9px] uppercase tracking-widest opacity-40 hover:opacity-100">
+                      View Receipt
+                    </OnyxButton>
+                  </div>
+                </OnyxCard>
+              </motion.div>
+            ))}
+          </div>
         )}
-      </div>
+      </motion.div>
     </main>
   );
 }
