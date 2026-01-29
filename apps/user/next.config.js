@@ -9,6 +9,9 @@ const nextConfig = {
     // Skip ESLint during build - run separately
     ignoreDuringBuilds: true,
   },
+  env: {
+    NEXT_PUBLIC_MAPBOX_TOKEN: process.env.MAPBOX_API_KEY,
+  },
 };
 
 export default nextConfig;

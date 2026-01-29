@@ -4,6 +4,7 @@ import { user } from "../routes/user";
 import { swagger } from "@elysiajs/swagger";
 import { cors } from "@elysiajs/cors";
 import { captain } from "../routes/captain";
+import { negotiationRoutes } from "../routes/negotiation";
 import { haversine } from "../lib/math";
 import {
   handleWebSocket,
@@ -83,7 +84,8 @@ const app = new Elysia({
   )
   .use(auth)
   .use(user)
-  .use(captain);
+  .use(captain)
+  .use(negotiationRoutes);
 
 export type App = typeof app;
 

@@ -15,6 +15,14 @@ enum TripStatus {
   CANCELLED
 }
 
+enum OfferStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EXPIRED
+  COUNTERED
+}
+
 model User {
   id String @id @default(uuid())
 
@@ -47,11 +55,43 @@ model Trip {
   status    TripStatus @default(REQUESTED)
   otp       String
 
+  // Price negotiation
+  userProposedPrice    Decimal?     @db.Decimal(10, 2)
+  acceptedOfferId      String?
+  priceOffers          PriceOffer[]
+  isNegotiationEnabled Boolean      @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([captainId])
   @@index([userId])
+  @@index([status])
+}
+
+model PriceOffer {
+  id String @id @default(uuid())
+
+  trip      Trip   @relation(fields: [tripId], references: [id])
+  tripId    String
+  captain   Captain @relation(fields: [captainId], references: [id])
+  captainId String
+
+  amount     Decimal     @db.Decimal(10, 2)
+  status     OfferStatus @default(PENDING)
+  proposedBy String      // "user" or "captain"
+
+  // Counter-offer chain
+  parentOfferId String?
+  parentOffer   PriceOffer?  @relation("CounterOffers", fields: [parentOfferId], references: [id])
+  counterOffers PriceOffer[] @relation("CounterOffers")
+
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tripId])
+  @@index([captainId])
   @@index([status])
 }
 
@@ -65,8 +105,14 @@ model Captain {
   vehicle    String?
   capacity   Int
   trips      Trip[]
+  priceOffers PriceOffer[]
   currentLat Decimal? @db.Decimal(10, 8)
   currentLng Decimal? @db.Decimal(10, 8)
+
+  // Rating and stats
+  rating       Decimal @default(5.0) @db.Decimal(3, 2)
+  totalTrips   Int     @default(0)
+  totalRatings Int     @default(0)
 
   isOnline   Boolean @default(false)
   inDrive    Boolean @default(false)
@@ -76,3 +122,4 @@ model Captain {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
