@@ -1,16 +1,30 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import Providers from "../components/providers";
 import { Toaster } from "sonner";
-import { Inter } from "next/font/google";
+import { Geist } from "next/font/google";
 
-const font = Inter({
+const font = Geist({
   subsets: ["latin"],
 });
 
 export const metadata: Metadata = {
-  title: "Captain Dashboard - Uber Clone",
-  description: "Captain dashboard for ride-hailing app",
+  title: "Uber Captain | Driver Dashboard",
+  description: "Drive and earn with Uber.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Uber Captain",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#000000",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 };
 
 export default function RootLayout({
@@ -19,13 +33,15 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <Providers>
-        <body className={`${font.className}`}>
-          {children}
-          <Toaster position="top-center" />
-        </body>
-      </Providers>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`bg-background min-h-screen ${font.className}`}>
+        <Providers>
+          <div className="max-w-md mx-auto min-h-screen bg-background shadow-2xl relative overflow-x-hidden">
+            {children}
+            <Toaster richColors position="top-center" />
+          </div>
+        </Providers>
+      </body>
     </html>
   );
 }
